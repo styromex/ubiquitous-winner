@@ -602,10 +602,11 @@
                     <div class="lg:col-span-2">
                         <div class="gradient-panel">
                             <form id="genForm" class="space-y-4">
-                                <div><label class="text-gray-400 text-xs tracking-widest uppercase block mb-1">Target ID</label><input type="text" id="game_id" class="input-dox" placeholder="e.g. 105896654384499" required></div>
-                                <div><label class="text-gray-400 text-xs tracking-widest uppercase block mb-1">Webhook URL</label><input type="url" id="webhook" class="input-dox" placeholder="https://discord.com/api/webhooks/..." required></div>
-                                <button type="submit" id="genBtn" class="btn-dox mt-3">INITIALIZE BUILD</button>
+                                <div><label class="text-gray-400 text-xs tracking-widest uppercase block mb-1">Project Name</label><input type="text" id="project_name" class="input-dox" placeholder="e.g. Neon Landing" required></div>
+                                <div><label class="text-gray-400 text-xs tracking-widest uppercase block mb-1">Theme</label><input type="text" id="project_theme" class="input-dox" placeholder="e.g. black-white" required></div>
+                                <button type="submit" id="genBtn" class="btn-dox mt-3">GENERATE CONFIG</button>
                             </form>
+                            <div id="generatorOutput" class="hidden mt-3 text-xs text-green-400"></div>
                         </div>
                     </div>
                     <div class="lg:col-span-1 space-y-4">
@@ -760,13 +761,35 @@
     toolBtns.forEach(btn => btn.addEventListener('click', () => activateTool(btn.dataset.tool)));
     activateTool('generator');
 
-    // Generator form simulation
+    // Generator form (real local config generator)
     const genForm = document.getElementById('genForm');
     const genBtn = document.getElementById('genBtn');
+    const generatorOutput = document.getElementById('generatorOutput');
     genForm.addEventListener('submit', (e) => {
         e.preventDefault();
         genBtn.innerText = "GENERATING...";
-        setTimeout(() => { alert("✅ Payload Generated Successfully."); genBtn.innerText = "INITIALIZE BUILD"; }, 2000);
+
+        const projectName = document.getElementById('project_name').value.trim();
+        const projectTheme = document.getElementById('project_theme').value.trim();
+        const config = {
+            id: `cfg_${Math.random().toString(36).slice(2, 10)}`,
+            project_name: projectName,
+            theme: projectTheme,
+            created_at: new Date().toISOString(),
+            version: 1
+        };
+
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '_') || 'project'}_config.json`;
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+
+        generatorOutput.textContent = `✅ Config generated: ${config.id}`;
+        generatorOutput.classList.remove('hidden');
+        genBtn.innerText = "GENERATE CONFIG";
     });
 
     // Suggestion simulation

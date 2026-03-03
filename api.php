@@ -41,12 +41,10 @@ function handleRegister($i)
     $p = $i['password'] ?? '';
 
     if (!$u || !$e || !$p) error('All fields required');
-    if (!isCaptchaVerified('register')) error('Captcha verification required');
     if (strlen($p) < 8) error('Password must be 8+ characters');
     if ($db->usernameExists($u)) error('Username already exists');
 
     if ($db->createUser($u, $e, $p)) {
-        clearCaptchaState('register');
         log_action('User Registered', $u);
         success(['message' => 'Account created']);
     }
@@ -62,7 +60,6 @@ function handleLogin($i)
     $p = $i['password'] ?? '';
 
     if (!$u || !$p) error('Username and password required');
-    if (!isCaptchaVerified('login')) error('Captcha verification required');
 
     $throttleState = getLoginThrottleState($u);
     if ($throttleState['locked']) {
@@ -94,7 +91,6 @@ function handleLogin($i)
         'roblox_id' => $us['roblox_id'] ?? null
     ];
 
-    clearCaptchaState('login');
     log_action('User Login', $u);
 
     success([
