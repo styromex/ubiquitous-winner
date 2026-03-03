@@ -203,11 +203,12 @@
                                         <div class="form-group password-form-group">
                                             <input id="login-password" name="password" type="password" class="form-control input-field" placeholder="Password" required>
                                         </div>
-                                        <div
-                                            style="background: #f9f9f9; padding: 12px; border-radius: 4px; margin: 15px 0; border: 1px solid #ddd;">
-                                            <div style="display: flex; align-items: center; gap: 10px;">
-                                                <input type="checkbox" id="login-captcha" required>
-                                                <label for="login-captcha">I'm not a robot</label>
+                                        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px; margin: 15px 0; border: 1px solid #ddd;">
+                                            <div style="font-size: 13px; margin-bottom: 8px;">Captcha: <strong id="login-captcha-prompt">-</strong></div>
+                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                <input type="text" id="login-captcha-answer" class="form-control input-field" placeholder="Answer" style="max-width: 120px;">
+                                                <button type="button" id="login-captcha-verify" class="btn-control-sm">Verify</button>
+                                                <button type="button" id="login-captcha-refresh" class="btn-control-sm">Refresh</button>
                                             </div>
                                             <div id="login-captcha-status" class="status-msg"></div>
                                         </div>
@@ -256,12 +257,14 @@
                                         <div class="form-group password-form-group">
                                             <input id="register-password-confirm" name="password-confirm" type="password" class="form-control input-field" placeholder="Confirm Password" required>
                                         </div>
-                                        <div
-                                            style="background: #f9f9f9; padding: 12px; border-radius: 4px; margin: 15px 0; border: 1px solid #ddd;">
-                                            <div style="display: flex; align-items: center; gap: 10px;">
-                                                <input type="checkbox" id="register-captcha" required>
-                                                <label for="register-captcha">I'm not a robot</label>
+                                        <div style="background: #f9f9f9; padding: 12px; border-radius: 4px; margin: 15px 0; border: 1px solid #ddd;">
+                                            <div style="font-size: 13px; margin-bottom: 8px;">Captcha: <strong id="register-captcha-prompt">-</strong></div>
+                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                <input type="text" id="register-captcha-answer" class="form-control input-field" placeholder="Answer" style="max-width: 120px;">
+                                                <button type="button" id="register-captcha-verify" class="btn-control-sm">Verify</button>
+                                                <button type="button" id="register-captcha-refresh" class="btn-control-sm">Refresh</button>
                                             </div>
+                                            <div id="register-captcha-status" class="status-msg"></div>
                                         </div>
                                         <button type="submit" id="register-button" class="btn-full-width login-button btn-secondary-md">Create Account</button>
                                     </form>

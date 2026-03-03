@@ -4,24 +4,25 @@ let captchaTokens = {};
 document.addEventListener('DOMContentLoaded', () => {
     setupCaptchaListeners();
     checkAuthStatus();
+    loadCaptchaChallenge('login');
+    loadCaptchaChallenge('register');
 });
 
 function setupCaptchaListeners() {
-    const loginCheckbox = document.getElementById('login-captcha');
-    const registerCheckbox = document.getElementById('register-captcha');
     const registerUsername = document.getElementById('register-username');
 
-    if (loginCheckbox) {
-        loginCheckbox.addEventListener('change', async (e) => {
-            if (e.target.checked) await verifyCDSCaptcha('login');
-        });
-    }
+    ['login', 'register'].forEach((type) => {
+        const verifyButton = document.getElementById(`${type}-captcha-verify`);
+        const refreshButton = document.getElementById(`${type}-captcha-refresh`);
 
-    if (registerCheckbox) {
-        registerCheckbox.addEventListener('change', async (e) => {
-            if (e.target.checked) await verifyCDSCaptcha('register');
-        });
-    }
+        if (verifyButton) {
+            verifyButton.addEventListener('click', () => verifyCaptcha(type));
+        }
+
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => loadCaptchaChallenge(type));
+        }
+    });
 
     if (registerUsername) {
         registerUsername.addEventListener('blur', async (e) => {
@@ -33,48 +34,63 @@ function setupCaptchaListeners() {
 
 async function checkAuthStatus() {
     const token = localStorage.getItem('authToken');
-    if (token) {
-        try {
-            const response = await axios.get(`${API_URL}/verify`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.data.valid) {
-                document.getElementById('login-form').style.display = 'none';
-            }
-        } catch (error) {
-            localStorage.removeItem('authToken');
+    if (!token) return;
+
+    try {
+        const response = await axios.get(`${API_URL}/verify`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.valid) {
+            const loginSection = document.getElementById('login');
+            if (loginSection) loginSection.style.display = 'none';
         }
+    } catch (error) {
+        localStorage.removeItem('authToken');
     }
 }
 
-async function verifyCDSCaptcha(type) {
+async function loadCaptchaChallenge(type) {
+    const promptEl = document.getElementById(`${type}-captcha-prompt`);
+    const inputEl = document.getElementById(`${type}-captcha-answer`);
+
+    if (!promptEl || !inputEl) return;
+
+    try {
+        showStatus(`${type}-captcha-status`, 'Loading challenge...', 'info');
+        const response = await axios.get(`${API_URL}/captcha-challenge`, {
+            params: { form: type }
+        });
+
+        promptEl.textContent = response.data.prompt;
+        inputEl.value = '';
+        captchaTokens[type] = null;
+        showStatus(`${type}-captcha-status`, 'Solve the challenge and click Verify.', 'info');
+    } catch (error) {
+        showStatus(`${type}-captcha-status`, 'Unable to load captcha challenge', 'error');
+    }
+}
+
+async function verifyCaptcha(type) {
+    const inputEl = document.getElementById(`${type}-captcha-answer`);
+    if (!inputEl) return;
+
     try {
         showStatus(`${type}-captcha-status`, 'Verifying...', 'info');
 
-        const cdsKeys = [
-            'A2A14B1D-1AF3-C791-9BBC-EE33CC7A0A6F',
-            '476068BF-9607-4799-B53D-966BE98E2B81',
-            '63E4117F-E727-42B4-6DAA-C8448E9B137F',
-            'CC30DB96-0C88-4DEB-86E5-6601927ACBB4'
-        ];
-
-        const randomKey = cdsKeys[Math.floor(Math.random() * cdsKeys.length)];
-        const token = `cds_${randomKey}_${Date.now()}`;
-
         const response = await axios.post(`${API_URL}/verify-captcha`, {
-            captchaToken: token
+            form: type,
+            answer: inputEl.value.trim()
         });
 
-        if (response.data.success) {
-            captchaTokens[type] = token;
+        if (response.data.verified) {
+            captchaTokens[type] = true;
             showStatus(`${type}-captcha-status`, '✓ Captcha verified', 'success');
-        } else {
-            showStatus(`${type}-captcha-status`, 'Verification failed', 'error');
-            document.getElementById(`${type}-captcha`).checked = false;
+            inputEl.disabled = true;
         }
     } catch (error) {
+        captchaTokens[type] = null;
         showStatus(`${type}-captcha-status`, error.response?.data?.error || 'Captcha error', 'error');
-        document.getElementById(`${type}-captcha`).checked = false;
     }
 }
 
@@ -87,7 +103,7 @@ async function checkUsernameAvailability(username) {
             statusEl.textContent = '✓ Available';
             statusEl.style.color = '#28a745';
         } else {
-            statusEl.textContent = '✗ Username taken on Roblox';
+            statusEl.textContent = '✗ Username already taken';
             statusEl.style.color = '#dc3545';
         }
     } catch (error) {
@@ -100,7 +116,7 @@ async function handleLogin(e) {
 
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    const captchaVerified = !!captchaTokens['login'];
+    const captchaVerified = !!captchaTokens.login;
 
     if (!username || !password) {
         showStatus('loginStatus', 'Username and password required', 'error');
@@ -108,7 +124,7 @@ async function handleLogin(e) {
     }
 
     if (!captchaVerified) {
-        showStatus('loginStatus', 'Please verify captcha', 'error');
+        showStatus('loginStatus', 'Please complete captcha verification', 'error');
         return false;
     }
 
@@ -117,10 +133,7 @@ async function handleLogin(e) {
     btn.innerHTML = '<span class="spinner"></span>Logging in...';
 
     try {
-        const response = await axios.post(`${API_URL}/login`, {
-            username,
-            password
-        });
+        const response = await axios.post(`${API_URL}/login`, { username, password });
 
         localStorage.setItem('authToken', response.data.token);
 
@@ -132,10 +145,12 @@ async function handleLogin(e) {
         showStatus('loginStatus', `Welcome ${username}! ✓`, 'success');
 
         setTimeout(() => {
-            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('login').style.display = 'none';
         }, 2000);
     } catch (error) {
         showStatus('loginStatus', error.response?.data?.error || 'Login failed', 'error');
+        loadCaptchaChallenge('login');
+        document.getElementById('login-captcha-answer').disabled = false;
     } finally {
         btn.disabled = false;
         btn.innerHTML = 'Log In';
@@ -151,7 +166,7 @@ async function handleRegister(e) {
     const email = document.getElementById('register-email').value;
     const password = document.getElementById('register-password').value;
     const passwordConfirm = document.getElementById('register-password-confirm').value;
-    const captchaVerified = !!captchaTokens['register'];
+    const captchaVerified = !!captchaTokens.register;
 
     if (!username || !email || !password) {
         showStatus('registerStatus', 'All fields required', 'error');
@@ -169,7 +184,7 @@ async function handleRegister(e) {
     }
 
     if (!captchaVerified) {
-        showStatus('registerStatus', 'Please verify captcha', 'error');
+        showStatus('registerStatus', 'Please complete captcha verification', 'error');
         return false;
     }
 
@@ -178,11 +193,7 @@ async function handleRegister(e) {
     btn.innerHTML = '<span class="spinner"></span>Creating Account...';
 
     try {
-        const response = await axios.post(`${API_URL}/register`, {
-            username,
-            email,
-            password
-        });
+        await axios.post(`${API_URL}/register`, { username, email, password });
 
         showStatus('registerStatus', 'Account created! Please login.', 'success');
 
@@ -191,12 +202,15 @@ async function handleRegister(e) {
             document.getElementById('register-email').value = '';
             document.getElementById('register-password').value = '';
             document.getElementById('register-password-confirm').value = '';
-            document.getElementById('register-captcha').checked = false;
-            captchaTokens['register'] = null;
+            captchaTokens.register = null;
+            document.getElementById('register-captcha-answer').disabled = false;
+            loadCaptchaChallenge('register');
             switchTab('login');
-        }, 2000);
+        }, 1500);
     } catch (error) {
         showStatus('registerStatus', error.response?.data?.error || 'Registration failed', 'error');
+        loadCaptchaChallenge('register');
+        document.getElementById('register-captcha-answer').disabled = false;
     } finally {
         btn.disabled = false;
         btn.innerHTML = 'Create Account';
@@ -206,12 +220,12 @@ async function handleRegister(e) {
 }
 
 function switchTab(tabName) {
-    document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.form-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.form-section').forEach((s) => s.classList.remove('active'));
+    document.querySelectorAll('.form-tab-btn').forEach((b) => b.classList.remove('active'));
 
     document.getElementById(tabName).classList.add('active');
 
-    document.querySelectorAll('.form-tab-btn').forEach(btn => {
+    document.querySelectorAll('.form-tab-btn').forEach((btn) => {
         if (btn.textContent.toLowerCase().includes(tabName === 'login' ? 'login' : 'sign')) {
             btn.classList.add('active');
         }
